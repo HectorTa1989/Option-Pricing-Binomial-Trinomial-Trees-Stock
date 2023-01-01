@@ -103,7 +103,7 @@ int main()
     std::string opType = "call"; // Option Type
 
 
-    int n = 100;                   // Number of Steps
+    int n = 10;                   // Number of Steps
     double dt = T/(double) n;    // Time divided by 'n'
 
     double U = exp(v*sqrt(dt));  // Upper Step Function
@@ -140,7 +140,7 @@ int main()
     std::cout << "Option Price: " << opPrice << std::endl;
 
     // Print the Options Tree
-    //PrintM(X, Row, Col);
+    PrintM(X, Row, Col);
 
     return 0;
 }
