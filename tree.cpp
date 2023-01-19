@@ -97,13 +97,13 @@ int main()
 
     double S = 100;              // Stock Price
     double K = 105;              // Strike Price
-    double r = 0.02;             // Risk-Free Rate
-    double v = 0.10;             // Volatility
-    double T = 30.0/365.0;         // Maturity
+    double r = 0.04;             // Risk-Free Rate
+    double v = 0.20;             // Volatility
+    double T = 60.0/365.0;         // Maturity
     std::string opType = "call"; // Option Type
 
 
-    int n = 10;                   // Number of Steps
+    int n = 12;                   // Number of Steps
     double dt = T/(double) n;    // Time divided by 'n'
 
     double U = exp(v*sqrt(dt));  // Upper Step Function
@@ -134,6 +134,15 @@ int main()
     
     // Backwards Discounting
     X = Discount(X, P, nP, r, dt, Row, Col, opType);
+
+    // Print all of the inputs
+    std::vector<double> print_stuff = {S,K,r,v,T};
+    std::vector<std::string> labels = {"Stock Price: ", "Strike Price: ", "Risk-Free Rate: ","Volatility: ", "Expiry: "};
+    for(int i = 0; i < labels.size(); ++i){
+        std::cout << labels[i] << print_stuff[i] << std::endl;
+    }
+
+    std::cout << "Option Type: " << opType << std::endl;
 
     // Print the Option Price
     double opPrice = X[split + 1][0];
