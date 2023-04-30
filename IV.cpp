@@ -106,7 +106,7 @@ int main()
     double option_price = 1.60; // Option price input to compute IVol
     std::string opType = "call"; // Option type
 
-    int nodes = 30; // Size of tree
+    int nodes = 1000; // Size of tree
     double dt = t / (double) nodes;
 
     // Declare Tree
@@ -125,6 +125,8 @@ int main()
     std::cout << "RiskFree Rate: " << r << std::endl;
     std::cout << "Expiry: " << t << std::endl;
     std::cout << "Option Type: " << opType << std::endl;
+    std::cout << "Nodes: " << nodes << std::endl;
+    std::cout << std::endl;
     
     // Set the implied volatility calculation parameters
     double diff = 0, v0 = 0.1, v1 = 1.0, mkt = option_price, vega = 0;
