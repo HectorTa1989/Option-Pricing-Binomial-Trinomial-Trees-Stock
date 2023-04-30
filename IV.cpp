@@ -32,8 +32,12 @@ auto p_m = [](double r, double v, double dt)
     return 1.0 - p_up(r, v, dt) - p_dn(r, v, dt);
 };
 
-double ** C(double ** tree, int rows, int cols, int split, double S, double K, double r, double v, double dt, double U, double D, double D_UP, double D_M, double D_DOWN, std::string opType)
+double C(int rows, int cols, int split, double S, double K, double r, double v, double dt, double U, double D, double D_UP, double D_M, double D_DOWN, std::string opType)
 {
+    double ** tree = new double*[rows];
+    for(int i = 0; i < rows; ++i){
+        tree[i] = new double[cols];
+    }
     int ux = 2;
     int cs = 0;
     while(cs <= cols){
@@ -74,13 +78,10 @@ double ** C(double ** tree, int rows, int cols, int split, double S, double K, d
         osx += 2;
     }
 
-    return tree;
-}
-
-double OptionPrice(double ** tree, int split)
-{
     return tree[split + 1][0];
 }
+
+
 
 
 int main()
@@ -89,35 +90,17 @@ int main()
     double S = 100.0; // Stock Price
     double K = 95.0; // Strike Price
     double r = 0.05; // RiskFree Rate
-    double v = 0.30; // Volatility
     double t = 30.0/365.0; // Expiry
     std::string opType = "put";
 
-    int nodes = 8;
+    int nodes = 4;
     double dt = t / (double) nodes;
 
     bool showtree = true;
 
-    // Declare Formulas
-    double U = u(v, dt);
-    double D = d(v, dt);
-
-    double D_UP = p_up(r, v, dt);
-    double D_DOWN = p_dn(r, v, dt);
-    double D_M = p_m(r, v, dt);
-
     // Declare Tree
     int rows = 4*nodes + 2;
     int cols = nodes + 1;
-
-    double ** tree = new double*[rows];
-    double ** treeB = new double*[rows];
-    double ** treeC = new double*[rows];
-    for(int i = 0; i < rows; ++i){
-        tree[i] = new double[cols];
-        treeB[i] = new double[cols];
-        treeC[i] = new double[cols];
-    }
 
     // Indexes middle of tree array which holds the initial stock price
     int split = rows / 2 - 1;
@@ -125,48 +108,66 @@ int main()
     // Used to calculate delta and gamma
     double ds = S*0.05;
 
-    tree = C(tree, rows, cols, split, S, K, r, v, dt, U, D, D_UP, D_M, D_DOWN, opType);
-    double opPriceA = OptionPrice(tree, split);
-    treeB = C(treeB, rows, cols, split, S+ds, K, r, v, dt, U, D, D_UP, D_M, D_DOWN, opType);
-    double opPriceB = OptionPrice(treeB, split);
-    treeC = C(treeC, rows, cols, split, S-ds, K, r, v, dt, U, D, D_UP, D_M, D_DOWN, opType);
-    double opPriceC = OptionPrice(treeC, split);
-
     // Display the inputs
     std::cout << "Stock Price: " << S << std::endl;
     std::cout << "Strike Price: " << K << std::endl;
     std::cout << "RiskFree Rate: " << r << std::endl;
-    std::cout << "Volatility: " << v << std::endl;
     std::cout << "Expiry: " << t << std::endl;
     std::cout << "Option Type: " << opType << std::endl;
-
-    // Option Price
-    std::cout << "Option Price: " << opPriceA << std::endl;
-
-    // Calculate Delta
-    double delta = (opPriceB - opPriceA)/ds;
-    std::cout << "Option Delta: " << delta << std::endl;
-
-    // Calculate Gamma
-    double gamma = (opPriceB - 2*opPriceA + opPriceC) / pow(ds, 2);
-    std::cout << "Option Gamma: " << gamma << std::endl;
-
     
-    
+    double diff = 0, v0 = 0.1, v1 = 1.0, mkt = 2.20, vega = 0;
+    double pA, pB, pC;
 
-    // Print Tree
-    if(showtree == true){
-        for(int i = 0; i < rows; ++i){
-            for(int j = 0; j < cols; ++j){
-                if(tree[i][j] == 0){
-                    std::cout << "\t";
-                } else {
-                    std::cout << round(tree[i][j]*100)/100 << "\t";
-                }
-            }
-            std::cout << std::endl;
+    double U, D, D_UP, D_DOWN, D_M;
+    
+    double dh = 0.001;
+
+    while(true){
+        //Declare Formulas
+        U = u(v0, dt);
+        D = d(v0, dt);
+
+        D_UP = p_up(r, v0, dt);
+        D_DOWN = p_dn(r, v0, dt);
+        D_M = p_m(r, v0, dt);
+
+        pA = C(rows, cols, split, S, K, r, v0, dt, U, D, D_UP, D_M, D_DOWN, opType);
+
+        U = u(v0+dh, dt);
+        D = d(v0+dh, dt);
+
+        D_UP = p_up(r, v0+dh, dt);
+        D_DOWN = p_dn(r, v0+dh, dt);
+        D_M = p_m(r, v0+dh, dt);
+
+        pB = C(rows, cols, split, S, K, r, v0+dh, dt, U, D, D_UP, D_M, D_DOWN, opType);
+
+        U = u(v0-dh, dt);
+        D = d(v0-dh, dt);
+
+        D_UP = p_up(r, v0-dh, dt);
+        D_DOWN = p_dn(r, v0-dh, dt);
+        D_M = p_m(r, v0-dh, dt);
+
+        pC = C(rows, cols, split, S, K, r, v0-dh, dt, U, D, D_UP, D_M, D_DOWN, opType);
+
+        diff = pA - mkt;
+        vega = (pB - pC)/(2.0*dh);
+
+        v1 = v0 - diff / vega;
+
+        if(abs(v1 - v0) <= 0.0001) {
+            break;
+        } else {
+            v0 = v1;
         }
+
+        
     }
+
+    std::cout << "Market Price: " << mkt << std::endl;
+    std::cout << "Implied Vol: " << v1 << std::endl;
+
     return 0;
 }
 
