@@ -3,16 +3,19 @@
 #include <string>
 #include <cmath>
 
+// Calculates the UP factor
 auto u = [](double v, double dt)
 {
     return exp(v*sqrt(2.0*dt));
 };
 
+// Calculates the DOWN factor
 auto d = [](double v, double dt)
 {
     return 1.0 / u(v, dt);
 };
 
+// Calculates probability up
 auto p_up = [](double r, double v, double dt)
 {
     double top = exp(r*dt/2.0) - exp(-v*sqrt(dt/2.0));
@@ -20,6 +23,7 @@ auto p_up = [](double r, double v, double dt)
     return pow(top/bot, 2);
 };
 
+// Calculates probability down
 auto p_dn = [](double r, double v, double dt)
 {
     double top = exp(v*sqrt(dt/2.0)) - exp(r*dt/2.0);
@@ -27,19 +31,26 @@ auto p_dn = [](double r, double v, double dt)
     return pow(top/bot, 2);
 };
 
+// Counts the middle probability
 auto p_m = [](double r, double v, double dt)
 {
     return 1.0 - p_up(r, v, dt) - p_dn(r, v, dt);
 };
 
+// Computes the option price for a call or put
 double C(int rows, int cols, int split, double S, double K, double r, double v, double dt, double U, double D, double D_UP, double D_M, double D_DOWN, std::string opType)
-{
+{   
+    // Declare tree array
     double ** tree = new double*[rows];
     for(int i = 0; i < rows; ++i){
         tree[i] = new double[cols];
     }
+
+    // Set indexors
     int ux = 2;
     int cs = 0;
+
+    // Forward propigation
     while(cs <= cols){
         tree[split][cs] = S;
         for(int i = cs + 1; i < cols; ++i){
@@ -78,6 +89,7 @@ double C(int rows, int cols, int split, double S, double K, double r, double v, 
         osx += 2;
     }
 
+    // Returns your option price
     return tree[split + 1][0];
 }
 
@@ -88,15 +100,14 @@ int main()
 {
     // Declare Inputs
     double S = 100.0; // Stock Price
-    double K = 95.0; // Strike Price
+    double K = 105.0; // Strike Price
     double r = 0.05; // RiskFree Rate
     double t = 30.0/365.0; // Expiry
-    std::string opType = "put";
+    double option_price = 1.60; // Option price input to compute IVol
+    std::string opType = "call"; // Option type
 
-    int nodes = 4;
+    int nodes = 30; // Size of tree
     double dt = t / (double) nodes;
-
-    bool showtree = true;
 
     // Declare Tree
     int rows = 4*nodes + 2;
@@ -115,15 +126,19 @@ int main()
     std::cout << "Expiry: " << t << std::endl;
     std::cout << "Option Type: " << opType << std::endl;
     
-    double diff = 0, v0 = 0.1, v1 = 1.0, mkt = 2.20, vega = 0;
+    // Set the implied volatility calculation parameters
+    double diff = 0, v0 = 0.1, v1 = 1.0, mkt = option_price, vega = 0;
+    
+    // Price and probability variables
     double pA, pB, pC;
 
     double U, D, D_UP, D_DOWN, D_M;
     
+    // The change for vega
     double dh = 0.001;
 
     while(true){
-        //Declare Formulas
+        // Calculate UP/DOWN and Discount Probabilities for the regular option price
         U = u(v0, dt);
         D = d(v0, dt);
 
@@ -131,8 +146,10 @@ int main()
         D_DOWN = p_dn(r, v0, dt);
         D_M = p_m(r, v0, dt);
 
+        // Regular option price w/ v0 (volatility) as iterated
         pA = C(rows, cols, split, S, K, r, v0, dt, U, D, D_UP, D_M, D_DOWN, opType);
 
+        // Calculate UP/DOWN and Probabilities for the upper vega formula
         U = u(v0+dh, dt);
         D = d(v0+dh, dt);
 
@@ -140,8 +157,10 @@ int main()
         D_DOWN = p_dn(r, v0+dh, dt);
         D_M = p_m(r, v0+dh, dt);
 
+        // Upper vega price
         pB = C(rows, cols, split, S, K, r, v0+dh, dt, U, D, D_UP, D_M, D_DOWN, opType);
 
+        // Calculate UP/DOWN and Probabilities for the lower vega formula
         U = u(v0-dh, dt);
         D = d(v0-dh, dt);
 
@@ -149,14 +168,20 @@ int main()
         D_DOWN = p_dn(r, v0-dh, dt);
         D_M = p_m(r, v0-dh, dt);
 
+        // Lower vega price
         pC = C(rows, cols, split, S, K, r, v0-dh, dt, U, D, D_UP, D_M, D_DOWN, opType);
 
+        // Calculate the differences and create a fixed point iterator formula
         diff = pA - mkt;
+        
+        // Compute vega
         vega = (pB - pC)/(2.0*dh);
 
+        // Calculate each volatility iteration
         v1 = v0 - diff / vega;
 
-        if(abs(v1 - v0) <= 0.0001) {
+        // Close loop if v0 & v1 are approximately the same
+        if(abs(v1 - v0) <= 0.00001) {
             break;
         } else {
             v0 = v1;
@@ -165,7 +190,12 @@ int main()
         
     }
 
+    // Calculates the options price for the generated implied volatility measure
+    double sim_price = C(rows, cols, split, S, K, r, v1, dt, U, D, D_UP, D_M, D_DOWN, opType);
+
+    // Displays post results
     std::cout << "Market Price: " << mkt << std::endl;
+    std::cout << "Option Price: " << sim_price << std::endl;
     std::cout << "Implied Vol: " << v1 << std::endl;
 
     return 0;
